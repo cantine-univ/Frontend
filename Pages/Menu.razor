@@ -1,0 +1,99 @@
+@page "/menus"
+@using FrontendApp.Models
+@using FrontendApp.Services
+@inject ApiService ApiService
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+
+<h3>Nos Menus</h3>
+
+@if (menus == null)
+{
+    <p>Chargement...</p>
+}
+else if (!menus.Any())
+{
+    <p>Aucun menu disponible pour le moment.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                @* <th>Date</th> *@
+                <th>Photo</th>
+                <th>Plat principal</th>
+                <th>Dessert</th>
+                <th>Boisson</th>
+                <th>Prix</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var menu in menus)
+            {
+                <tr>
+                    
+                    <td>               
+                            @if (!string.IsNullOrEmpty(menu.PhotoUrl))
+                            {
+                                <img src="https://localhost:7001/@menu.PhotoUrl" alt="Photo du menu" style="width: 100px; height: auto; border-radius: 5px;" />
+                            }
+                            else
+                            {
+                                <span>Pas de photo</span>
+                            }                         
+                    </td>
+                    @* <td>@menu.Date.ToString("dd/MM/yyyy")</td> *@
+                    <td>@menu.PlatPrincipal</td>
+                    <td>@menu.Dessert</td>
+                    <td>@menu.Boisson</td>
+                    <td>@menu.Prix FCFA</td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="() => Reserver(menu.Id)">Réserver</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p style="color: green;">@message</p>
+}
+
+@code {
+    private List<MenuDto>? menus;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        menus = await ApiService.GetMenusAsync();
+    }
+
+    private async Task Reserver(int menuId)
+    {
+        var userId = await JS.InvokeAsync<string>("localStorage.getItem", "user_id");
+
+    
+        var reservationToCreate = new ReservationCreateDTO
+        {
+            MenuId = menuId,
+            ReservationDate = DateTime.Now,
+            UserId = userId ?? "default-user-id" 
+        };
+
+        var created = await ApiService.CreateReservationAsync(reservationToCreate); 
+
+        if (created != null)
+        {
+            message = "✅ Réservation effectuée avec succès.";
+            
+        }
+        else
+        {
+            message = "❌ Échec de la réservation.";
+        }
+    }
+}

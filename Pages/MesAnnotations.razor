@@ -1,0 +1,85 @@
+@page "/mesannotations"
+@using FrontendApp.Services
+@using FrontendApp.Models
+@inject ApiService ApiService
+@inject IJSRuntime JS
+
+<h2 class="page-title">📝 Mes Annotations de Menus</h2>
+
+@if (isLoading)
+{
+    <p>Chargement de vos annotations...</p>
+}
+else if (annotations == null || !annotations.Any())
+{
+    <p>Vous n'avez pas encore laissé d'annotations. Notez les menus pour partager votre avis !</p>
+    <a href="/dashboard" class="btn btn-primary">Retour au Tableau de Bord</a>
+}
+else
+{
+    <table>
+        <thead>
+            <tr>
+                <th>Date du Menu</th>
+                <th>Plat Principal</th>
+                <th>Note</th>
+                <th>Commentaire</th>
+                <th>Date de l'Annotation</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var annotation in annotations)
+            {
+                <tr>
+                    <td>@GetMenuDate(annotation.MenuId)</td>
+                    <td>@GetMenuPlatPrincipal(annotation.MenuId)</td>
+                    <td>@annotation.Note / 5</td>
+                    <td>@(string.IsNullOrEmpty(annotation.Commentaire) ? "Aucun commentaire" : annotation.Commentaire)</td>
+                    <td>@annotation.CreatedAt.ToShortDateString()</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<AnnotationDTO>? annotations;
+    private List<MenuDto>? menus; 
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserAnnotations();
+    }
+
+    private async Task LoadUserAnnotations()
+    {
+        isLoading = true;
+        try
+        {
+            menus = await ApiService.GetMenusAsync();
+
+            annotations = await ApiService.GetAnnotationsParUtilisateurAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du chargement des annotations : {ex.Message}");
+            await JS.InvokeVoidAsync("alert", $"Erreur lors du chargement de vos annotations : {ex.Message}");
+            annotations = new List<AnnotationDTO>(); 
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string GetMenuDate(int menuId)
+    {
+        return menus?.FirstOrDefault(m => m.Id == menuId)?.Date.ToShortDateString() ?? "N/A";
+    }
+
+    private string GetMenuPlatPrincipal(int menuId)
+    {
+        return menus?.FirstOrDefault(m => m.Id == menuId)?.PlatPrincipal ?? "N/A";
+    }
+}
