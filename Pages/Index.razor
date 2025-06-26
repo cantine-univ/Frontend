@@ -1,0 +1,43 @@
+@page "/"
+
+<div class="container">
+    <h1>Bienvenue sur la page d'accueil</h1>
+    <p>Explorez l'application en vous connectant ou en vous inscrivant.</p>
+
+    <div class="actions">
+        <a class="btn btn-primary" href="/login">Se connecter</a>
+        <a class="btn btn-secondary" href="/register">S'inscrire</a>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 500px;
+        margin: 100px auto;
+        text-align: center;
+    }
+    .actions {
+        margin-top: 20px;
+    }
+    .btn {
+        display: inline-block;
+        margin: 5px;
+        padding: 10px 20px;
+        border-radius: 5px;
+        text-decoration: none;
+        color: white;
+        transition: background-color 0.3s;
+    }
+    .btn-primary {
+        background-color: #007bff;
+    }
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+    .btn-secondary {
+        background-color: #28a745;
+    }
+    .btn-secondary:hover {
+        background-color: #1e7e34;
+    }
+</style>
