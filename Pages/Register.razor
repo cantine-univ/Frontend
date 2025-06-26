@@ -1,0 +1,126 @@
+@page "/register"
+@using FrontendApp.Services
+@using FrontendApp.Models
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+
+<h3>Créer un compte</h3>
+
+<div class="form-container">
+    <input @bind="FullName" placeholder="Nom complet" />
+    <input @bind="Email" placeholder="Email" type="email" />
+    <input @bind="Password" placeholder="Mot de passe" type="password" />
+
+    <button class="btn btn-primary" @onclick="RegisterUser">S’inscrire</button>
+    <button class="btn btn-link" @onclick="GoToLogin">Se connecter</button>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <p class="error">@Message</p>
+    }
+</div>
+
+@code {
+    private string FullName = "";
+    private string Email = "";
+    private string Password = "";
+    private string Role = "Etudiant";
+    private string Message = "";
+
+    private async Task RegisterUser()
+    {
+        Message = "";
+        var user = new UserRegisterDto
+        {
+            FullName = FullName,
+            Email = Email,
+            Password = Password,
+            Role = Role
+        };
+
+        try
+        {
+            var result = await ApiService.RegisterAsync(user);
+            if (result != null)
+            {
+                await JS.InvokeVoidAsync("localStorage.setItem", "token", result.Token);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                Message = ApiService.LastError ?? "Inscription échouée. Vérifie les informations saisies.";
+            }
+
+        }
+        catch (Exception ex)
+        {
+            Message = $"Erreur inattendue : {ex.Message}";
+        }
+    }
+
+    private void GoToLogin()
+    {
+        Navigation.NavigateTo("/login");
+    }
+}
+
+
+
+<style>
+    .form-container {
+        max-width: 400px;
+        margin: 100px auto;
+        background: #f8f9fa;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    input {
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-size: 16px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .btn {
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        margin-top: 10px;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-link {
+        background: none;
+        color: #007bff;
+        text-decoration: underline;
+        margin-top: 5px;
+    }
+
+    .btn-link:hover {
+        color: #0056b3;
+    }
+
+    .error {
+        color: red;
+        text-align: center;
+        margin-top: 10px;
+    }
+</style>

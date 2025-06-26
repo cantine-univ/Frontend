@@ -1,0 +1,54 @@
+protected override async Task OnInitializedAsync() 
+     { 
+         menus = await ApiService.GetMenusAsync(); 
+         reservations = await ApiService.GetReservationsAsync(); 
+         var mesNotes = await ApiService.GetAnnotationsParUtilisateurAsync(); 
+
+         foreach (var note in mesNotes) 
+         { 
+             annotationsByMenu[note.MenuId] = note; 
+         } 
+
+         foreach (var menu in menus) 
+         { 
+             if (!annotationsInputs.ContainsKey(menu.Id)) 
+                 annotationsInputs[menu.Id] = new AnnotationCreateDTO(); 
+         } 
+     } 
+
+     private void ToggleCard(string cardName) 
+     { 
+         openedCard = openedCard == cardName ? null : cardName; 
+     } 
+
+     private void CloseOverlay() 
+     { 
+         openedCard = null; 
+     } 
+
+     private async Task EnvoyerNote(int menuId) 
+ { 
+     var note = annotationsInputs[menuId]; 
+     note.MenuId = menuId; 
+
+     bool success = await ApiService.AjouterAnnotationAsync(note); 
+     if (success) 
+     { 
+         annotationsByMenu[menuId] = new AnnotationDTO 
+         { 
+             MenuId = note.MenuId, 
+             Note = note.Note, 
+             Commentaire = note.Commentaire, 
+         }; 
+
+         annotationsInputs[menuId] = new AnnotationCreateDTO();
+         await JS.InvokeVoidAsync("alert", "Note envoyée avec succès !"); 
+         StateHasChanged(); 
+     } 
+     else 
+     { 
+         await JS.InvokeVoidAsync("alert", "Erreur lors de l'envoi de la note."); 
+     } 
+ } 
+
+ }
