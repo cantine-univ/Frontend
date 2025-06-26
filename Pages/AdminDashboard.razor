@@ -1,0 +1,392 @@
+@page "/admin"
+@using FrontendApp.Models
+@using FrontendApp.Services
+@inject ApiService ApiService
+@inject IJSRuntime JS
+
+<h2 class="admin-title">🎛️ Dashboard Administrateur</h2>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert @(isErrorMessage ? "error" : "success")">@message</div>
+}
+
+<section>
+    <h3>➕ Créer un nouveau menu</h3>
+    <EditForm Model="@newMenu" OnValidSubmit="@CreateMenu" OnInvalidSubmit="@(() => ShowMessage("Veuillez remplir tous les champs obligatoires du menu.", true))">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label for="menuDate">Date:</label>
+            <InputDate id="menuDate" @bind-Value="newMenu.Date" />
+            <ValidationMessage For="@(() => newMenu.Date)" />
+        </div>
+        <div class="form-group">
+            <label for="platPrincipal">Plat principal:</label>
+            <InputText id="platPrincipal" @bind-Value="newMenu.PlatPrincipal" placeholder="Plat principal" />
+            <ValidationMessage For="@(() => newMenu.PlatPrincipal)" />
+        </div>
+        <div class="form-group">
+            <label for="dessert">Dessert:</label>
+            <InputText id="dessert" @bind-Value="newMenu.Dessert" placeholder="Dessert" />
+            <ValidationMessage For="@(() => newMenu.Dessert)" />
+        </div>
+        <div class="form-group">
+            <label for="boisson">Boisson:</label>
+            <InputText id="boisson" @bind-Value="newMenu.Boisson" placeholder="Boisson" />
+            <ValidationMessage For="@(() => newMenu.Boisson)" />
+        </div>
+
+        <div class="form-group">
+            <label for="prix">Prix:</label>
+            <InputNumber id="prix" @bind-Value="newMenu.Prix" placeholder="Prix en FCFA" />
+            <ValidationMessage For="@(() => newMenu.Prix)" />
+        </div>
+
+        <div class="form-group">
+            <label for="photo">Photo (image du plat):</label>
+            <InputFile OnChange="HandlePhotoUpload" accept="image/*" /> @* Corrigé: accept="image/*" *@
+            @if (!string.IsNullOrEmpty(uploadedPhotoName))
+            {
+                <p>Fichier sélectionné : @uploadedPhotoName</p>
+            }
+        </div>
+
+        <button class="btn btn-primary" type="submit" disabled="@isLoading">Créer</button>
+    </EditForm>
+</section>
+
+
+<section>
+    <h3>📋 Menus existants</h3>
+    @if (isLoading && menus == null)
+    {
+        <p>Chargement des menus...</p>
+    }
+    else if (menus == null || !menus.Any())
+    {
+        <p>Aucun menu enregistré.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Photo</th>
+                    <th>Date</th>
+                    <th>Plat</th>
+                    <th>Dessert</th>
+                    <th>Boisson</th>
+                    <th>Prix</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var menu in menus)
+                {
+                    <tr>
+                        <td>
+                            @* --- Affichage de l'image ici --- *@
+                            @if (!string.IsNullOrEmpty(menu.PhotoUrl))
+                            {
+                                <img src="https://localhost:7001/@menu.PhotoUrl" alt="Photo du menu" style="width: 100px; height: auto; border-radius: 5px;" />
+                            }
+                            else
+                            {
+                                <span>Pas de photo</span>
+                            }
+                        </td>
+                        <td>@menu.Date.ToShortDateString()</td>
+                        <td>@menu.PlatPrincipal</td>
+                        <td>@menu.Dessert</td>
+                        <td>@menu.Boisson</td>
+                        <td>@menu.Prix.ToString("C")</td>
+                        <td>
+                            <button class="btn btn-danger" @onclick="() => DeleteMenu(menu.Id)" disabled="@isLoading">Supprimer</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+
+<section>
+    <h3>📦 Réservations</h3>
+    @if (isLoading && reservations == null)
+    {
+        <p>Chargement des réservations...</p>
+    }
+    else if (reservations == null || !reservations.Any())
+    {
+        <p>Aucune réservation trouvée.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    @* <th>MenuId</th> *@
+                    <th>Utilisateur</th>
+                    <th>Date</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in reservations)
+                {
+                    <tr>
+                        @* <td>@r.MenuId</td> *@
+                        <td>@r.UserName</td>
+                        <td>@r.ReservationDate.ToShortDateString()</td>
+                        <td>@r.Status</td>
+                        <td>
+                            <button class="btn btn-warning" @onclick="() => AnnulerReservation(r.Id)" disabled="@isLoading">Annuler</button>
+                            @* <button class="btn btn-success" @onclick="() => MarquerCommePret(r.Id)" disabled="@isLoading">Prête</button> *@
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+
+<section>
+    <h3>📝 Notes des menus</h3>
+    @if (isLoading && annotations == null)
+    {
+        <p>Chargement des notes...</p>
+    }
+    else if (annotations == null || !annotations.Any())
+    {
+        <p>Aucune note disponible.</p>
+    }
+    else
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>Menu</th>
+                    <th>Note</th>
+                    <th>Commentaire</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var a in annotations)
+                {
+                    <tr>
+                        <td>@a.MenuId</td>
+                        <td>@a.Note</td>
+                        <td>@a.Commentaire</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private List<MenuDto>? menus;
+    private MenuDto newMenu = new() { Date = DateTime.Now };
+    private List<ReservationDto>? reservations;
+    private List<AnnotationDTO>? annotations;
+    private string? message;
+    private bool isErrorMessage;
+    private bool isLoading = true;
+    private string? uploadedPhotoName;
+    private string? menuPhotoUrlFromUpload;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
+        {
+            menus = await ApiService.GetMenusAsync();
+            reservations = await ApiService.GetReservationsAsync();
+            annotations = await ApiService.GetAllAnnotationsAsync();
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage($"Erreur lors du chargement des données: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ShowMessage(string msg, bool isError = false)
+    {
+        message = msg;
+        isErrorMessage = isError;
+        StateHasChanged();
+        await Task.Delay(5000);
+        message = null;
+        StateHasChanged();
+    }
+
+    // Créer un menu
+    private async Task CreateMenu()
+    {
+        isLoading = true;
+        try
+        {
+           
+
+            var created = await ApiService.CreateMenuAsync(newMenu);
+            if (created)
+            {
+                await ShowMessage("Menu créé avec succès.");
+                await LoadData();
+                newMenu = new() { Date = DateTime.Now }; 
+                uploadedPhotoName = null;
+                menuPhotoUrlFromUpload = null; 
+            }
+            else
+            {
+                await ShowMessage("Erreur lors de la création du menu. Vérifiez les données.", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage($"Une erreur inattendue est survenue lors de la création du menu: {ex.Message}", true);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    // Gérer le téléchargement de la photo et l'envoi à l'API
+    private async Task HandlePhotoUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        uploadedPhotoName = file.Name; 
+        StateHasChanged(); 
+
+        try
+        {
+            var maxFileSize = 5 * 1024 * 1024; 
+            if (file.Size > maxFileSize)
+            {
+                await ShowMessage($"Le fichier est trop grand (max {maxFileSize / (1024 * 1024)} MB).", true);
+                uploadedPhotoName = null; 
+                return;
+            }
+
+            
+            using var stream = file.OpenReadStream(maxFileSize); 
+            var content = new MultipartFormDataContent();
+            content.Add(new StreamContent(stream), "file", file.Name);
+
+            var uploadResult = await ApiService.UploadMenuImage(content);
+
+            if (uploadResult.IsSuccessStatusCode)
+            {
+                menuPhotoUrlFromUpload = await uploadResult.Content.ReadAsStringAsync();
+                newMenu.PhotoUrl = menuPhotoUrlFromUpload; 
+                await ShowMessage("Image téléchargée avec succès. N'oubliez pas de créer le menu pour sauvegarder l'URL en base de données.", false);
+            }
+            else
+            {
+                var errorContent = await uploadResult.Content.ReadAsStringAsync();
+                await ShowMessage($"Erreur lors du téléchargement de l'image : {uploadResult.StatusCode} - {errorContent}", true);
+                uploadedPhotoName = null; 
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowMessage($"Une erreur s'est produite lors du téléchargement de l'image : {ex.Message}", true);
+            uploadedPhotoName = null; 
+        }
+        finally
+        {
+            StateHasChanged(); 
+        }
+    }
+
+
+    // Supprimer un menu
+    private async Task DeleteMenu(int id)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Êtes-vous sûr de vouloir supprimer ce menu ? Cette action est irréversible.");
+        if (confirmed)
+        {
+            isLoading = true;
+            try
+            {
+                var result = await ApiService.DeleteMenuAsync(id);
+                if (result)
+                {
+                    await ShowMessage("Menu supprimé avec succès.");
+                    await LoadData();
+                }
+                else
+                {
+                    await ShowMessage("Échec de la suppression du menu.", true);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessage($"Une erreur inattendue est survenue lors de la suppression du menu: {ex.Message}", true);
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+    }
+
+    // Annuler une réservation
+    private async Task AnnulerReservation(int reservationId)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Êtes-vous sûr de vouloir annuler la réservation #{reservationId} ?");
+        if (confirmed)
+        {
+            isLoading = true;
+            try
+            {
+                var result = await ApiService.DeleteReservationAsync(reservationId);
+                if (result)
+                {
+                    await ShowMessage("Réservation annulée avec succès.");
+                    await LoadData();
+                }
+                else
+                {
+                    await ShowMessage("Erreur lors de l'annulation de la réservation.", true);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowMessage($"Une erreur inattendue est survenue lors de l'annulation de la réservation: {ex.Message}", true);
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+    }
+
+    // Marquer une réservation comme prête
+    @* private async Task MarquerCommePret(int reservationId)
+    {
+      
+
+        await ShowMessage($"La réservation #{reservationId} est marquée comme prête (simulation).");
+       
+    } *@
+}
